@@ -1,0 +1,26 @@
+
+ATUAL:
+botao para apagar todas as entradas
+
+
+PROBLEMAS:
+
+POSSÍVEIS PROBLEMAS:
+
+para otimização mais tarde?:
+Se fizer upload de um plano, saco o plano, acrescento mais imagens e volto a sacar, há sobreposição de imagens
+porque já estão guardadas nas images entries --> fazer reset sempre que há download?
+
+Updload de plano -> acrescentar imagem -> upload do mesmo plano sem guardar --> nova imagem mantem-se --> não deixar
+fazer upload de plano atual, ou apagar tudo o que não existe na base de dados?
+
+optimizar download do plano consoante o id do plano? Criar subpastas automaticamente ou deixar o user fazer issoo?
+
+SOLUÇÕES:
+
+TENTAR:
+Autosave de x em x tempo? Ou Save temporario em caso de crash
+pla ID --> facilitar autosave em caso de crash?
+Melhorar a questão dos saves quando se inicia um novo plano (clicando em save guarda automaticamente no id que foi
+indicado, em vez de pedir o id novamente)
+
