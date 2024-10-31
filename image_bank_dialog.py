@@ -1,62 +1,140 @@
 import os
-from PyQt5 import QtGui
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QGridLayout, QLabel
 from PyQt5.QtGui import QPixmap
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, QGridLayout, QLabel, QListWidget, QPushButton,
+                              QScrollArea, QWidget, QHBoxLayout, QSpacerItem, QSizePolicy)
+
+class ImageLoader(QThread):
+    images_loaded = pyqtSignal(list, list)
+
+    def __init__(self, folder):
+        super().__init__()
+        self.folder = folder
+
+    def run(self):
+        images = []
+        folders = []
+        for entry in os.listdir(self.folder):
+            path = os.path.join(self.folder, entry)
+            if os.path.isdir(path):
+                folders.append(entry)
+            elif entry.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
+                images.append(entry)
+        self.images_loaded.emit(images, folders)
+
 
 class ImageBankDialog(QDialog):
     def __init__(self, image_folder, parent=None):
         super(ImageBankDialog, self).__init__(parent)
         self.image_folder = image_folder
         self.selected_image_path = None
+        self.history = []
 
-        self.setWindowTitle("Seleciona uma Imagem")
+        # Window Setup
+        self.setWindowTitle("Select an Image")
+        self.setStyleSheet("background-color: #fafafa;")
+        self.resize(900, 700)
 
-        # Set a similar background color to popup_load_plan_dialog
-        self.setStyleSheet("background-color: #f7c45f;")
-        self.layout = QVBoxLayout()
-        self.layout.setContentsMargins(10, 10, 10, 10)  # Set tighter margins
-        self.layout.setSpacing(1)
-        self.resize(800, 600)
+        # Main Layout
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(15, 15, 15, 15)
+        self.layout.setSpacing(15)
 
-        # Modify search bar styling
+        # Search Bar
         self.search_bar = QLineEdit(self)
-        self.search_bar.setPlaceholderText("Pequisar Imagens ... ")
-        font2 = QtGui.QFont()
-        font2.setPointSize(12)
-        self.search_bar.setFont(font2)
-        self.search_bar.setStyleSheet("background-color: #f3b25d;")  # Match input field color
+        self.search_bar.setPlaceholderText("Search images...")
+        self.search_bar.setStyleSheet("padding: 10px; border: 1px solid #ccc; border-radius: 5px;")
         self.search_bar.textChanged.connect(self.filter_images)
         self.layout.addWidget(self.search_bar)
 
-        # Create image grid layout
-        self.image_grid = QGridLayout()
-        self.layout.addLayout(self.image_grid)
+        # Folder and Image Container
+        self.container_layout = QHBoxLayout()
+        self.layout.addLayout(self.container_layout)
 
-        self.setLayout(self.layout)
-        self.layout.addStretch(1)
-        self.load_images()
-    def load_images(self):
-        self.images = []
-        for file_name in os.listdir(self.image_folder):
-            if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
-                self.images.append(file_name)
-            self.display_images(self.images)
+        # Folder List
+        self.folder_list = QListWidget(self)
+        self.folder_list.setFixedWidth(200)
+        self.folder_list.setStyleSheet("padding: 10px; border: 1px solid #ccc; border-radius: 5px;")
+        self.folder_list.itemDoubleClicked.connect(self.open_folder)
+        self.container_layout.addWidget(self.folder_list)
+
+        # Scroll Area for Images
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setStyleSheet("border: none;")
+
+        # Container for Image Grid
+        self.image_container = QWidget()
+        self.image_grid = QGridLayout(self.image_container)
+        self.image_grid.setSpacing(5)  # Reduced space between images
+        self.image_grid.setContentsMargins(5, 5, 5, 5)  # Reduced margins
+        self.scroll_area.setWidget(self.image_container)
+        self.container_layout.addWidget(self.scroll_area)
+
+        # Back Button
+        self.navigation_layout = QHBoxLayout()
+        self.back_button = QPushButton("Back", self)
+        self.back_button.setFixedWidth(100)
+        self.back_button.setStyleSheet("padding: 10px; border-radius: 5px; background-color: #f0ad4e; color: white;")
+        self.back_button.clicked.connect(self.go_back)
+        self.back_button.setEnabled(False)
+        self.navigation_layout.addWidget(self.back_button)
+
+        # Spacer to center the button
+        self.navigation_layout.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
+        self.layout.addLayout(self.navigation_layout)
+
+        # Load initial images and folders
+        self.load_images(self.image_folder)
+
+    def load_images(self, folder):
+        self.loader = ImageLoader(folder)
+        self.loader.images_loaded.connect(self.on_images_loaded)
+        self.loader.start()
+
+    def on_images_loaded(self, images, folders):
+        self.images = images
+        self.folders = folders
+        self.display_images(self.images)
+        self.display_folders(self.folders)
 
     def display_images(self, images):
+        # Clear the previous grid layout
         for i in reversed(range(self.image_grid.count())):
             widget = self.image_grid.itemAt(i).widget()
             if widget is not None:
                 widget.setParent(None)
 
+        # Display the images in a grid
         for index, image_name in enumerate(images):
             image_path = os.path.join(self.image_folder, image_name)
-            pixmap = QPixmap(image_path).scaled(100, 100, aspectRatioMode=1)  # Scale images to 100x100 pixels
+            pixmap = QPixmap(image_path).scaled(120, 120, aspectRatioMode=Qt.KeepAspectRatio)
             label = QLabel(self)
             label.setPixmap(pixmap)
+            label.setStyleSheet("border: 1px solid #ccc; border-radius: 5px;")  # Add border and radius
             label.mousePressEvent = self.get_image_click_handler(image_path)
-            row = index // 4
-            col = index % 4
+            row = index // 5  # Display 5 images per row
+            col = index % 5
             self.image_grid.addWidget(label, row, col)
+
+    def display_folders(self, folders):
+        self.folder_list.clear()
+        self.folder_list.addItems(folders)
+
+    def open_folder(self, item):
+        folder_name = item.text()
+        new_folder = os.path.join(self.image_folder, folder_name)
+
+        self.history.append(self.image_folder)
+        self.image_folder = new_folder
+        self.back_button.setEnabled(True)
+        self.load_images(new_folder)
+
+    def go_back(self):
+        if self.history:
+            self.image_folder = self.history.pop()
+            self.load_images(self.image_folder)
+            self.back_button.setEnabled(len(self.history) > 0)
 
     def filter_images(self, text):
         filtered_images = [img for img in self.images if text.lower() in img.lower()]
@@ -66,4 +144,5 @@ class ImageBankDialog(QDialog):
         def handler(event):
             self.selected_image_path = image_path
             self.accept()
+
         return handler

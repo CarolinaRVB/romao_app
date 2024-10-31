@@ -1,11 +1,12 @@
+import os
+import sys
+import shutil
 import sqlite3
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QListWidget
+from PyQt5.QtCore import QTimer
+from pages_data import PagesData
 from PyQt5.QtGui import QPixmap, QFont
 from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtCore import QTimer
-import sys
-import os
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QListWidget
 
 current_user_id = None
 
@@ -25,6 +26,7 @@ def reset_form(parent, ui, names_list):
             element.setText("img")
         elif isinstance(element, QtWidgets.QComboBox):
             element.setCurrentIndex(0)
+
 
 class UserDialog(QDialog):
     def __init__(self, user_ids, parent=None):
@@ -48,6 +50,7 @@ class UserDialog(QDialog):
         # Add QListWidget to layout
         self.layout.addWidget(self.listWidget)
         self.setLayout(self.layout)
+
 
 def popup_load_plan_dialog(parent, title, line):
     # Create a custom dialog window
@@ -124,9 +127,11 @@ def popup_load_plan_dialog(parent, title, line):
     else:
         return None
 
+
 def user_id_exists(user_id):
-    folder = 'database'
+    folder = os.path.join(os.path.expanduser("~"), 'romao_data')
     os.makedirs(folder, exist_ok=True)
+
     db_path = os.path.join(folder, 'database.db')
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -135,15 +140,18 @@ def user_id_exists(user_id):
     conn.close()
     return exists
 
+
 def delete_plan(user_id):
-    folder = 'database'
+    folder = os.path.join(os.path.expanduser("~"), 'romao_data')
     os.makedirs(folder, exist_ok=True)
+
     db_path = os.path.join(folder, 'database.db')
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM form_data WHERE user_id = ?', (user_id,))
     conn.commit()
     conn.close()
+
 
 def delete_plan_entry(parent):
     user_input = popup_load_plan_dialog(parent, "Apagar Plano", "Escreve o ID do plano:")
@@ -162,9 +170,13 @@ def delete_plan_entry(parent):
         else:
             QtWidgets.QMessageBox.warning(parent, "Erro", f"Plano com ID {user_input} não existe.")
 
+
 def fetch_user_ids(parent):
-    folder = 'database'
+    # folder = 'database'
+    # os.makedirs(folder, exist_ok=True)
+    folder = os.path.join(os.path.expanduser("~"), 'romao_data')
     os.makedirs(folder, exist_ok=True)
+
     db_path = os.path.join(folder, 'database.db')
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -176,23 +188,84 @@ def fetch_user_ids(parent):
     return user_ids
 
 
-def init_db(names_list):
-    folder = 'database'
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for both dev and for PyInstaller """
+    try:
+        # PyInstaller temporary folder
+        base_path = sys._MEIPASS
+    except AttributeError:
+        # In development, base path is the current working directory
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
+def get_all_image_paths():
+    folder = os.path.join(os.path.expanduser("~"), 'romao_data')
     os.makedirs(folder, exist_ok=True)
+
     db_path = os.path.join(folder, 'database.db')
-    # db_path = 'ui/database/form_data.db'
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('SELECT image_path FROM image_paths')
+    paths = cursor.fetchall()
+    conn.close()
+    return [path[0] for path in paths]
+
+
+def add_image_path(image_path):
+    folder = os.path.join(os.path.expanduser("~"), 'romao_data')
+    os.makedirs(folder, exist_ok=True)
+
+    db_path = os.path.join(folder, 'database.db')
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    columns = ",\n".join(f"{name} TEXT" for name in names_list if name != "user_id")
+    cursor.execute('''
+        INSERT INTO images_paths (image_path)
+        VALUES (?)
+    ''', (image_path,))
 
-    cursor.execute(f'''
-        CREATE TABLE IF NOT EXISTS form_data (
-            id INTEGER PRIMARY KEY,
-            user_id TEXT,
-            {columns}
-        )
-    ''')
+    conn.commit()
+    conn.close()
+
+
+def init_db(names_list):
+    # Folder where the database should be copied to (user-writable)
+    folder = os.path.join(os.path.expanduser("~"), 'romao_data')
+    os.makedirs(folder, exist_ok=True)
+    db_path = os.path.join(folder, 'database.db')
+
+    # Check if the database already exists
+    if not os.path.exists(db_path):
+        # If it doesn't exist, copy the empty database from the bundled resources
+        bundled_db_path = resource_path("database/database.db")
+        shutil.copyfile(bundled_db_path, db_path)
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='form_data';")
+    if cursor.fetchone() is None:
+        # If the table does not exist, create it
+        columns = ",\n".join(f"{name} TEXT" for name in names_list if name != "user_id")
+        cursor.execute(f'''
+            CREATE TABLE form_data (
+                id INTEGER PRIMARY KEY,
+                user_id TEXT,
+                {columns}
+            )
+        ''')
+
+    # Check if images_paths table exists
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='images_paths';")
+    if cursor.fetchone() is None:
+        cursor.execute('''
+            CREATE TABLE images_paths (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                image_path TEXT
+            )
+        ''')
+
     conn.commit()
     conn.close()
 
@@ -241,10 +314,12 @@ def save_form_data(parent, ui, names_list):
         else:
             insert_form_data(data)
 
+
 def setup_auto_save(parent, ui, names_list, interval=60000):
     timer = QTimer(parent)
     timer.timeout.connect(lambda: save_form_data(parent, ui, names_list))
     timer.start(interval)
+
 
 def insert_new_id(parent, ui, names_list):
     global current_user_id
@@ -259,12 +334,12 @@ def insert_new_id(parent, ui, names_list):
 
 
 def insert_form_data(data):
-    folder = 'database'
+    folder = os.path.join(os.path.expanduser("~"), 'romao_data')
     os.makedirs(folder, exist_ok=True)
     db_path = os.path.join(folder, 'database.db')
+
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
     columns = ', '.join(data.keys())
     placeholders = ', '.join('?' * len(data))
 
@@ -278,93 +353,59 @@ def insert_form_data(data):
 
 
 def update_form_data(data):
-    folder = 'database'
+    folder = os.path.join(os.path.expanduser("~"), 'romao_data')
     os.makedirs(folder, exist_ok=True)
     db_path = os.path.join(folder, 'database.db')
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     columns = ', '.join(f"{key} = ?" for key in data.keys() if key != 'user_id')
-
     cursor.execute(f'''
         UPDATE form_data
         SET {columns}
         WHERE user_id = ?
     ''', tuple(value for key, value in data.items() if key != 'user_id') + (data['user_id'],))
-
     conn.commit()
     conn.close()
 
+
 def set_image(label, image_path):
     if image_path:
-        label.setToolTip(image_path)  # Store the image path in the toolTip
+        label.setToolTip(image_path)
         pixmap = QPixmap(image_path)
         if not pixmap.isNull():
-            scaled_pixmap = pixmap.scaled(60, 50, aspectRatioMode=1)
+            scaled_pixmap = pixmap.scaled(50, 50)
             label.setPixmap(scaled_pixmap)
-            label.setScaledContents(True)
+            label.setScaledContents(False)
         else:
             label.setText("img")
 
 
-def change_grid_visibility(element,  value, grid_list, visible):
-    if value == "1":
-        element.setCurrentIndex(1)
-        set_layout_visible(grid_list[0], visible)
-        set_layout_visible(grid_list[1], visible)
-        set_layout_visible(grid_list[2], visible)
-        set_layout_visible(grid_list[3], visible)
-    elif value == "2":
-        element.setCurrentIndex(2)
-        set_layout_visible(grid_list[0], visible)
-        set_layout_visible(grid_list[1], visible)
-        set_layout_visible(grid_list[2], visible)
-        set_layout_visible(grid_list[3], visible)
-        set_layout_visible(grid_list[4], visible)
-        set_layout_visible(grid_list[5], visible)
-    elif value == "3":
-        element.setCurrentIndex(3)
-        set_layout_visible(grid_list[0], visible)
-        set_layout_visible(grid_list[1], visible)
-        set_layout_visible(grid_list[2], visible)
-        set_layout_visible(grid_list[3], visible)
-        set_layout_visible(grid_list[4], visible)
-        set_layout_visible(grid_list[5], visible)
-        set_layout_visible(grid_list[6], visible)
-        set_layout_visible(grid_list[7], visible)
+def change_grid_visibility(element, value, grid_list, visible):
+    index_map = {"1": 1, "2": 2, "3": 3}
+    layout_map = {"1": 4, "2": 6, "3": 8}
 
-def set_all_pages_visible(ui, name, element, value, visible):
+    if value in index_map:
+        element.setCurrentIndex(index_map[value])
+        limit = layout_map[value]
+        for layout in grid_list[:limit]:
+            set_layout_visible(layout, visible)
 
-    grid_pa = [ui.gridLayout_7, ui.gridLayout_9, ui.gridLayout_46, ui.gridLayout_43,
-                         ui.gridLayout_57, ui.gridLayout_58, ui.gridLayout_59, ui.gridLayout_60]
-    grid_MM1 = [ui.gridLayout_32, ui.gridLayout_31, ui.gridLayoutM_1, ui.gridLayoutM_2,
-                           ui.gridLayoutM_3, ui.gridLayoutM_4, ui.gridLayoutM_5, ui.gridLayoutM_6]
-    grid_MM2 = [ui.gridLayoutMM_1, ui.gridLayoutMM_2, ui.gridLayoutMM_3, ui.gridLayoutMM_4,
-                      ui.gridLayoutMM_5, ui.gridLayoutMM_6, ui.gridLayoutMM_7, ui.gridLayoutMM_8]
-    grid_L = [ui.gridLayoutL_1, ui.gridLayoutL_2, ui.gridLayoutL_3, ui.gridLayoutL_4,
-                    ui.gridLayoutL_5, ui.gridLayoutL_6, ui.gridLayoutL_7, ui.gridLayoutL_8]
-    grid_SN = [ui.gridLayoutSN_1, ui.gridLayoutSN_2, ui.gridLayoutSN_3, ui.gridLayoutSN_4,
-                         ui.gridLayoutSN_5, ui.gridLayoutSN_6, ui.gridLayoutSN_7, ui.gridLayoutSN_8]
-    grid_Se = [ui.gridLayoutSe_1, ui.gridLayoutSe_2, ui.gridLayoutSe_3, ui.gridLayoutSe_4, ui.gridLayoutSe_5,
-               ui.gridLayoutSe_6, ui.gridLayoutSe_7, ui.gridLayoutSe_8]
-    grid_C = [ui.gridLayoutC_1, ui.gridLayoutC_2, ui.gridLayoutC_3, ui.gridLayoutC_4,
-              ui.gridLayoutC_5, ui.gridLayoutC_6, ui.gridLayoutC_7, ui.gridLayoutC_8]
 
-    if name == "pageSelection":
-        change_grid_visibility(element, value, grid_pa, visible)
-    elif name == "pageSelectionM1":
-        change_grid_visibility(element, value, grid_MM1, visible)
-    elif name == "pageSelectionMM2":
-        change_grid_visibility(element, value, grid_MM2, visible)
-    elif name == "pageSelectionL":
-        change_grid_visibility(element, value, grid_L, visible)
-    elif name == "pageSelectionSN":
-        change_grid_visibility(element, value, grid_SN, visible)
-    elif name == "pageSelectionSe":
-        change_grid_visibility(element, value, grid_Se, visible)
-    elif name == "pageSelectionC":
-        change_grid_visibility(element, value, grid_C, visible)
-
+def set_all_pages_visible(parent, name, element, value, visible):
+    grid_names = {
+        'pageSelection': 0,
+        'pageSelectionM1': 1,
+        'pageSelectionMM2': 2,
+        'pageSelectionL': 3,
+        'pageSelectionSN': 4,
+        'pageSelectionSe': 5,
+        'pageSelectionC': 6
+    }
+    if name in grid_names:
+        index = grid_names[name]
+        grid = PagesData.get_grid_names_PA(parent, index)
+        change_grid_visibility(element, value, grid, visible)
 
 
 def set_layout_visible(layout, visible):
@@ -375,7 +416,7 @@ def set_layout_visible(layout, visible):
 
 
 def fetch_form_data(user_id):
-    folder = 'database'
+    folder = os.path.join(os.path.expanduser("~"), 'romao_data')
     os.makedirs(folder, exist_ok=True)
     db_path = os.path.join(folder, 'database.db')
 
@@ -391,7 +432,6 @@ def fetch_form_data(user_id):
 def load_form_data(parent, ui):
 
     user_input = popup_load_plan_dialog(parent, "Recuperar Plano", "ID do Plano: ")
-
     if user_input:
         data = fetch_form_data(user_input)
         if data:
@@ -404,7 +444,6 @@ def load_form_data(parent, ui):
                 elif value and isinstance(element, QtWidgets.QLabel):
                     set_image(element, value)
                 elif value and isinstance(element, QtWidgets.QComboBox):
-                    set_all_pages_visible(ui, name, element, value, True)
+                    set_all_pages_visible(parent, name, element, value, True)
         else:
             QtWidgets.QMessageBox.warning(parent, "Error", "No data found for the given plan ID.")
-

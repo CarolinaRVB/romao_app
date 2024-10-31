@@ -1,5 +1,35 @@
 <RCC>
   <qresource prefix="logos"/>
+  <qresource prefix="fonts">
+    <file>fonts/static/BebasNeue-Regular.ttf</file>
+    <file>fonts/static/Montserrat-Black.ttf</file>
+    <file>fonts/static/Montserrat-BlackItalic.ttf</file>
+    <file>fonts/static/Montserrat-Bold.ttf</file>
+    <file>fonts/static/Montserrat-BoldItalic.ttf</file>
+    <file>fonts/static/Montserrat-ExtraBold.ttf</file>
+    <file>fonts/static/Montserrat-ExtraBoldItalic.ttf</file>
+    <file>fonts/static/Montserrat-ExtraLight.ttf</file>
+    <file>fonts/static/Montserrat-ExtraLightItalic.ttf</file>
+    <file>fonts/static/Montserrat-Italic.ttf</file>
+    <file>fonts/static/Montserrat-Light.ttf</file>
+    <file>fonts/static/Montserrat-LightItalic.ttf</file>
+    <file>fonts/static/Montserrat-Medium.ttf</file>
+    <file>fonts/static/Montserrat-MediumItalic.ttf</file>
+    <file>fonts/static/Montserrat-Regular.ttf</file>
+    <file>fonts/static/Montserrat-SemiBold.ttf</file>
+    <file>fonts/static/Montserrat-SemiBoldItalic.ttf</file>
+    <file>fonts/static/Montserrat-Thin.ttf</file>
+    <file>fonts/static/Montserrat-ThinItalic.ttf</file>
+  </qresource>
+  <qresource prefix="templates">
+    <file>templates/pagina1.pdf</file>
+    <file>templates/pagina2_2.pdf</file>
+    <file>templates/pagina2_4.pdf</file>
+    <file>templates/pagina2_6.pdf</file>
+    <file>templates/pagina2_8.pdf</file>
+    <file>templates/pagina3.pdf</file>
+    <file>templates/template.pdf</file>
+  </qresource>
   <qresource prefix="icons">
     <file>icons/activity.svg</file>
     <file>icons/airplay.svg</file>

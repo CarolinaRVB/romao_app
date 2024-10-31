@@ -1,9 +1,17 @@
 
 ATUAL:
-botao para apagar todas as entradas
+- problema nos botoes do PAS
+- problema nas box coords do AL e J -- pode ser no set_coords no input_data
+- create auxiliary function to get cursor in the database.py
+- ajustar o x do recomend ref
+- ver se ha forma de respeitar dimensoes das imagens
+- No load de imagens, ativar o checkbox de simples ou complexo - guardar checkbox na database
+- TESTAR todas as paginas, ver se algum label ficou mal!!
+- acrescentar foto perfil na pagina geral
 
 
 PROBLEMAS:
+
 
 POSSÍVEIS PROBLEMAS:
 
@@ -14,13 +22,22 @@ porque já estão guardadas nas images entries --> fazer reset sempre que há do
 Updload de plano -> acrescentar imagem -> upload do mesmo plano sem guardar --> nova imagem mantem-se --> não deixar
 fazer upload de plano atual, ou apagar tudo o que não existe na base de dados?
 
-optimizar download do plano consoante o id do plano? Criar subpastas automaticamente ou deixar o user fazer issoo?
 
 SOLUÇÕES:
 
 TENTAR:
-Autosave de x em x tempo? Ou Save temporario em caso de crash
-pla ID --> facilitar autosave em caso de crash?
-Melhorar a questão dos saves quando se inicia um novo plano (clicando em save guarda automaticamente no id que foi
-indicado, em vez de pedir o id novamente)
+
+
+MEDIDAS:
+
+
+
+0: PA, MM1, MM2, LAN, S, Se, C
+1: A, J
+2: PAS, MC1, MC2, LC, SC, SEC, CC
+
+
+
+
+
 
